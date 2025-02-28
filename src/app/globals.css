@@ -22,3 +22,21 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Make form inputs and placeholders darker */
+input, select, textarea {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #4B5563 !important;
+  opacity: 1;
+}
+
+/* Ensure select options are dark */
+option {
+  color: #000000;
+  background-color: #ffffff;
+}
