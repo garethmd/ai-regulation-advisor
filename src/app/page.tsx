@@ -67,7 +67,7 @@ export default function Home() {
       // For now, just show the scraped content
       setResult({
         success: true,
-        analysis: `Website Title: ${websiteData.title}\n\nWebsite Description: ${websiteData.description}\n\nContent:\n${websiteData.content}`,
+        analysis: `Website Title: ${websiteData.data.title}\n\nWebsite Data: ${websiteData.data.raw}`,
         timestamp: new Date().toISOString()
       });
     } catch (err) {
