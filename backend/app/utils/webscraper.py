@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from typing import Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 
@@ -57,6 +58,13 @@ class WebScraper:
         text_lower = text.lower()
         return any(keyword in text_lower for keyword in self.ai_keywords)
 
+    # Extract and clean text
+
+    def clean_text(self, text):
+        return re.sub(
+            r"\s+", " ", text
+        ).strip()  # Replace multiple spaces/newlines with a single space
+
     async def scrape_website(self, url: str) -> Dict:
         """Scrape website content with focus on AI-related information."""
         if not url.startswith(("http://", "https://")):
@@ -78,68 +86,15 @@ class WebScraper:
                     # Initialize content dictionary
                     content = {
                         "title": "",
-                        "description": "",
-                        "company_info": [],
-                        "ai_related_content": [],
-                        "main_content": "",
-                        "technologies_used": [],
-                        "privacy_policy_url": None,
+                        "raw": "",
                     }
 
                     # Extract title
                     content["title"] = self._extract_text_from_element(soup.title)
+                    content["raw"] = self.clean_text(
+                        soup.get_text(separator=" ")
+                    )  # Avoids multiple line breaks
 
-                    # Extract meta description
-                    meta_desc = soup.find("meta", attrs={"name": "description"})
-                    if meta_desc:
-                        content["description"] = meta_desc.get("content", "")
-
-                    # Find privacy policy link
-                    privacy_links = soup.find_all(
-                        "a", href=True, text=lambda t: t and "privacy" in t.lower()
-                    )
-                    if privacy_links:
-                        content["privacy_policy_url"] = urljoin(
-                            url, privacy_links[0]["href"]
-                        )
-
-                    # Extract company information
-                    about_sections = soup.find_all(
-                        ["div", "section"],
-                        class_=lambda x: x
-                        and any(
-                            term in str(x).lower()
-                            for term in ["about", "company", "who-we-are"]
-                        ),
-                    )
-                    for section in about_sections:
-                        text = self._extract_text_from_element(section)
-                        if text:
-                            content["company_info"].append(text)
-
-                    # Extract main content and AI-related information
-                    main_content_tags = ["p", "article", "section", "div"]
-                    for tag in soup.find_all(main_content_tags):
-                        text = self._extract_text_from_element(tag)
-                        if text:
-                            if len(text) > 50:  # Filter out very short sections
-                                content["main_content"] += text + "\n\n"
-                            if self._is_ai_related(text):
-                                content["ai_related_content"].append(text)
-
-                    # Look for technology mentions
-                    tech_sections = soup.find_all(
-                        ["div", "section"],
-                        class_=lambda x: x
-                        and any(
-                            term in str(x).lower()
-                            for term in ["tech", "technology", "stack", "solution"]
-                        ),
-                    )
-                    for section in tech_sections:
-                        text = self._extract_text_from_element(section)
-                        if text:
-                            content["technologies_used"].append(text)
                     return content
 
         except Exception as e:
@@ -151,41 +106,7 @@ class WebScraper:
         try:
             content = await self.scrape_website(url)
 
-            # Analyze the content
-            analysis = {
-                "url": url,
-                "company_name": (
-                    content["title"].split("|")[0].strip()
-                    if "|" in content["title"]
-                    else content["title"]
-                ),
-                "uses_ai": len(content["ai_related_content"]) > 0,
-                "ai_applications": [],
-                "privacy_concerns": bool(content["privacy_policy_url"]),
-                "summary": (
-                    content["description"] or content["company_info"][0]
-                    if content["company_info"]
-                    else ""
-                ),
-            }
-
-            # Categorize AI applications
-            if analysis["uses_ai"]:
-                ai_categories = {
-                    "automation": ["automation", "workflow", "process"],
-                    "analytics": ["analytics", "prediction", "forecasting"],
-                    "nlp": ["language", "text", "nlp", "chatbot"],
-                    "computer_vision": ["vision", "image", "recognition"],
-                    "decision_making": ["decision", "recommendation", "optimization"],
-                }
-
-                for text in content["ai_related_content"]:
-                    for category, keywords in ai_categories.items():
-                        if any(keyword in text.lower() for keyword in keywords):
-                            if category not in analysis["ai_applications"]:
-                                analysis["ai_applications"].append(category)
-
-            return analysis
+            return content
 
         except Exception as e:
             logging.error(f"Error analyzing website {url}: {str(e)}")
